@@ -2,6 +2,9 @@
 
 #include <iostream>
 #include <cerrno>
+#include <cassert>
+#include <cstdio>
+
 
 using namespace net02;
 using namespace std;

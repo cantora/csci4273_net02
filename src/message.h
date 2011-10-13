@@ -3,6 +3,7 @@
 
 #include <cstdlib>
 #include <stack>
+#include <utility>
 
 namespace net02 {
 
@@ -18,7 +19,7 @@ class message {
 
 	private:
 		
-		std::stack<std::pair<char *, size_t>> m_headers;
+		std::stack< std::pair<char *, size_t> > m_headers;
 		const char *m_msg;
 		const size_t m_msg_len;
 		
