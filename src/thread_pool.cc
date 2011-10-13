@@ -20,13 +20,15 @@ thread_pool::thread_pool(size_t thread_count) : m_pool_size(thread_count), m_poo
 	
 	/* Initialize and set thread detached attribute */
 	pthread_attr_init(&attr);
-	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
 	//pthread_attr_getstacksize (&attr, &stacksize);
 	//cout << "Default stack size = " << stacksize << endl;
 
 	stacksize = THREAD_POOL_STACKSIZE;
 	pthread_attr_setstacksize (&attr, stacksize);
 
+	//cout << "create " << m_pool_size << " threads" << endl; cout.flush();
+	
 	for(i = 0; i < m_pool_size; i++) {
 		m_pool[i].data.index = i;
 		status = pthread_create(&m_pool[i].id, &attr, thread_pool::thread_loop, (void *)&m_pool[i].data);
@@ -45,6 +47,13 @@ thread_pool::~thread_pool() {
 	for(i = 0; i < m_pool_size; i++) {
 		//cout << "cancel thread " << i << endl;
 		status = pthread_cancel(m_pool[i].id);
+		if(status != 0) {
+			throw errno;
+		}
+	}
+
+	for(i = 0; i < m_pool_size; i++) {
+		status = pthread_join(m_pool[i].id, NULL);
 		if(status != 0) {
 			throw errno;
 		}
@@ -160,8 +169,8 @@ void *thread_pool::thread_loop(void *thread_data) {
 		/* loop and wait on dispatch condition. note that dispatch_mtx is still locked here. */		
 	}
 
-	/* will never get here */
-	pthread_cleanup_pop(0);
+	/* shouldnt ever get here */
+	pthread_cleanup_pop(1);
 }
 
 void thread_pool::thread_at_exit(void *thread_data) {

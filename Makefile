@@ -4,7 +4,7 @@ DEFINES 		=
 INCLUDES 		+= -iquote"./src" 
 DBG			= -g
 #OPTIMIZE		= -Os
-C_FLAGS 		= -Wall $(OPTIMIZE) $(DBG) -w $(DEFINES) $(INCLUDES)
+C_FLAGS 		= -Wall $(OPTIMIZE) $(DBG) -w $(DEFINES) $(INCLUDES) -pthread
 
 CXX_FLAGS		= $(C_FLAGS)
 CXX_CMD			= g++ $(CXX_FLAGS)
@@ -16,7 +16,7 @@ BOOST_TEST_FLAGS	= -L/opt/local/lib
 BOOST_TEST_LIB		= -lboost_test_exec_monitor
 BOOST_TEST_INCLUDE	= -I/opt/local/include
 
-LIB			= -lpthread
+#LIB			= -lpthread
 
 OBJECTS 		:= $(patsubst %.cc, $(BUILD)/%.o, $(notdir $(wildcard ./src/*.cc) ) )
 
