@@ -44,6 +44,6 @@ void *thread_pool::thread_loop(void *thread_data) {
 	thread_data_t *mydata = (thread_data_t *) thread_data;
 
 	sleep(mydata->index);	
-	cout << "qwerqwer " << mydata->index << endl;
+	cout << "thread number " << mydata->index << endl;
 	cout.flush();
 }
