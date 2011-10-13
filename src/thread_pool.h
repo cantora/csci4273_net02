@@ -21,35 +21,41 @@ class thread_pool {
 		thread_pool(size_t thread_count);
 		~thread_pool();
 		
-		static void *thread_loop(void *thread_data);
-	protected:
-		
-		
+		void dispatch_thread(void (*dispatch_fn)(void *), void *arg);
+		bool thread_avail();
+
 	private:
+
+		static void *thread_loop(void *thread_data);
+		static void thread_at_exit(void *thread_data);
+	
 		class thread_sync {
 			public:
 				thread_sync() {
-					pthread_mutex_init(&mtx, NULL);
-					pthread_cond_init(&cond, NULL);
+					pthread_mutex_init(&dispatch_mtx, NULL);
+					pthread_cond_init(&dispatch, NULL);
 				}
 
 				~thread_sync() {
-					pthread_mutex_destroy(&mtx);
-					pthread_cond_destroy(&cond);
+					pthread_mutex_destroy(&dispatch_mtx);
+					pthread_cond_destroy(&dispatch);
 				}
 		
-				pthread_mutex_t mtx;
-				pthread_cond_t cond;
+				pthread_mutex_t dispatch_mtx;
+				pthread_cond_t dispatch;
 		};
 
 		struct thread_data_t {
-			int index;
 			thread_sync sync;
+			int index;
+			void (*dispatch_fn)(void *);
+			void *dispatch_fn_args;			
 		};
 
 		struct thread_t {
-			pthread_t id;
 			thread_data_t data;
+			pthread_t id;
+			
 		};
 
 		thread_t *const m_pool;
