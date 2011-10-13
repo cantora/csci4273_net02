@@ -2,8 +2,6 @@
 #define THREAD_POOL_H
 
 #include <cstdlib>
-#include <vector>
-
 
 extern "C" {
 #include <pthread.h>
