@@ -31,15 +31,20 @@ BOOST_AUTO_TEST_CASE(construct) {
 	sleep(1);
 }
 
+#define TEST_DISPATCH_COUNT 100
+static char test_dispatch_result[TEST_DISPATCH_COUNT];
+
 void test_dispatch(void *args) {
-	printf("test_dispatch: %s\n", (char *) args);
+	printf("test_dispatch: %d\n", (int) args);
+	test_dispatch_result[(int) args] = 1;
 }
 
 BOOST_AUTO_TEST_CASE(dispatch) {
 	thread_pool *tp;
 	int i;
 	int n_threads = 10;
-	char *messages[] = {"Death is rarely scary in video games", "You can always just load a previous save and redo the portion of the game you struggled with", "or the game will simply bring your character back to life and plop you down right where you died.", "We complain about games that suffer from checkpoints that are too far from each other;", "we hate when we have to play the same section of the game again due to death.", "In multiplayer games death usually means you have to take a swig of your beer as you wait for your character to respawn.", "In Aliens: Infestation on the NIntendo DS, death means that you can never use that character again.", NULL};
+	
+	memset(test_dispatch_result, 0, TEST_DISPATCH_COUNT*sizeof(char));
 
 	cout << "test thread pool dispatch" << endl;
 	tp = new thread_pool(n_threads);
@@ -48,15 +53,21 @@ BOOST_AUTO_TEST_CASE(dispatch) {
 	
 	BOOST_REQUIRE(tp->thread_avail());
 	
-	for(i = 0; messages[i] != NULL; i++) {
+	for(i = 0; i < TEST_DISPATCH_COUNT; i++) {
 		//cout << messages[i] << endl;
-		cout << i << endl;
-		tp->dispatch_thread(test_dispatch, messages[i]);
+		//cout << i << endl;
+		if(tp->dispatch_thread(test_dispatch, (void *)i) < 0) {
+			BOOST_REQUIRE(false);
+		}
 	}	
 
 	sleep(1);
 
 	delete tp;
+
+	for(i = 0; i < TEST_DISPATCH_COUNT; i++) {
+		BOOST_REQUIRE_EQUAL(1, test_dispatch_result[i]);
+	}
 
 	sleep(1);
 }

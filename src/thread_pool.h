@@ -21,7 +21,7 @@ class thread_pool {
 		thread_pool(size_t thread_count);
 		~thread_pool();
 		
-		void dispatch_thread(void (*dispatch_fn)(void *), void *arg);
+		int dispatch_thread(void (*dispatch_fn)(void *), void *arg);
 		bool thread_avail();
 
 	private:
@@ -31,7 +31,7 @@ class thread_pool {
 	
 		class thread_sync {
 			public:
-				thread_sync() {
+				thread_sync() : busy(false) {
 					pthread_mutex_init(&dispatch_mtx, NULL);
 					pthread_cond_init(&dispatch, NULL);
 				}
@@ -40,9 +40,10 @@ class thread_pool {
 					pthread_mutex_destroy(&dispatch_mtx);
 					pthread_cond_destroy(&dispatch);
 				}
-		
+				
 				pthread_mutex_t dispatch_mtx;
 				pthread_cond_t dispatch;
+				bool busy;
 		};
 
 		struct thread_data_t {
