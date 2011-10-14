@@ -6,12 +6,8 @@
 #include <list>
 #include <utility>
 
-#define MESSAGE_STATIC 0
-#define MESSAGE_DYNAMIC 1
-
 namespace net02 {
 
-template <int MSG_TYPE>
 class message {
 	public:
 		message(char *msg, size_t msg_len);
@@ -25,6 +21,7 @@ class message {
 	private:
 		
 		std::list< std::pair<char *, size_t> > m_headers;
+
 		const char *m_msg;
 		const size_t m_msg_len;
 		

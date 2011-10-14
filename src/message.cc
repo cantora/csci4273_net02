@@ -7,6 +7,13 @@
 using namespace net02;
 using namespace std;
 
+/*
+ * add list of headers to delete even if theyve been stripped, take full ownership
+ * of all char * added to message
+ * allow partial strips by shifting the pointer "up" len bytes. this is fine since
+ * original pointer is saved in the delete list and caller no longer has 
+ * obligation to delete the stripped header.
+ */
 message::message(char *msg, size_t msg_len) : m_msg(msg), m_msg_len(msg_len) {
 	assert(m_msg_len > 0);
 	assert(m_msg != NULL);

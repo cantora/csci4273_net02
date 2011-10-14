@@ -4,6 +4,7 @@
 #include <cstdlib>
 
 extern "C" {
+#include <stdint.h>
 #include <pthread.h>
 }
 
@@ -19,14 +20,20 @@ class thread_pool {
 		thread_pool(size_t thread_count);
 		~thread_pool();
 		
-		int dispatch_thread(void (*dispatch_fn)(void *), void *arg);
+		/*struct dispatch_id_t {
+		 *	uint32_t worker_id;
+		 *	uint32_t job_id;
+		 *}
+		 */
+
+		int dispatch_thread(void (*dispatch_fn)(void *), void *arg); // dispatch_id_t &did);
 		bool thread_avail();
 
 	private:
-
+		
 		static void *thread_loop(void *thread_data);
-		static void thread_at_exit(void *thread_data);
-	
+		static void thread_at_exit(void *thread_data);		
+
 		class thread_sync {
 			public:
 				thread_sync() : busy(false) {
@@ -42,13 +49,18 @@ class thread_pool {
 				pthread_mutex_t dispatch_mtx;
 				pthread_cond_t dispatch;
 				bool busy;
+
+			private:
+				/* this class shouldn't be copied because of its mutex stuff */
+				thread_sync(const thread_sync&);
+				thread_sync& operator=(const thread_sync&);
 		};
 
 		struct thread_data_t {
 			thread_sync sync;
 			int index;
 			void (*dispatch_fn)(void *);
-			void *dispatch_fn_args;			
+			void *dispatch_fn_args;
 		};
 
 		struct thread_t {

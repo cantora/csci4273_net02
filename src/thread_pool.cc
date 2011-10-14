@@ -66,10 +66,13 @@ thread_pool::~thread_pool() {
 /*
  * finds a thread to run dispatch_fn(args). 
  * returns the index of the thread used to 
- * run the function. returns negative one to
+ * run the function. returns zero if dispatch
+ * went ok, returns negative one to
  * indicate that all threads were busy
+ * the output parameter wid will contain
+ * the index of the worker
  */
-int thread_pool::dispatch_thread(void (*dispatch_fn)(void *), void *args) {
+int thread_pool::dispatch_thread(void (*dispatch_fn)(void *), void *args) { // , thread_pool::dispatch_id_t &did
 	int i, status;
 
 	assert(dispatch_fn != NULL);
@@ -82,11 +85,22 @@ int thread_pool::dispatch_thread(void (*dispatch_fn)(void *), void *args) {
 			if(m_pool[i].data.sync.busy == false) {
 				m_pool[i].data.dispatch_fn = dispatch_fn;
 				m_pool[i].data.dispatch_fn_args = args;
+				
+				/* signal the worker (its blocking on dispatch conditions) */
 				pthread_cond_signal(&m_pool[i].data.sync.dispatch);
 				printf("thread_pool: sent dispatch signal to thread %d\n", m_pool[i].data.index);
+
 				m_pool[i].data.sync.busy = true;
+
+				/* increment job id to keep track of which job is which for cancellation purposes */
+				/* nevermind, this isnt actually useful
+				 *m_pool[i].data.job_id++; 
+				 *did.worker_id = i;
+				 *did.job_id = m_pool[i].data.job_id;*/
+
 				pthread_mutex_unlock(&m_pool[i].data.sync.dispatch_mtx);
-				return i;
+				/* return out of this for loop because we found a worker */
+				return 0;
 			}
 			else {
 				pthread_mutex_unlock(&m_pool[i].data.sync.dispatch_mtx);
@@ -115,6 +129,10 @@ bool thread_pool::thread_avail() {
 		if(status == 0) {
 			available = !m_pool[i].data.sync.busy;
 			pthread_mutex_unlock(&m_pool[i].data.sync.dispatch_mtx);
+
+			/* its maybe possible theres a timing window where busy and mtx are not in sync
+ 			 * so we check to be sure busy is false;
+			 */
 			if(available) {
 				return true;
 			}
