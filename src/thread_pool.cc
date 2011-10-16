@@ -69,8 +69,6 @@ thread_pool::~thread_pool() {
  * run the function. returns zero if dispatch
  * went ok, returns negative one to
  * indicate that all threads were busy
- * the output parameter wid will contain
- * the index of the worker
  */
 int thread_pool::dispatch_thread(void (*dispatch_fn)(void *), void *args) { // , thread_pool::dispatch_id_t &did
 	int i, status;

@@ -22,41 +22,36 @@ class scheduler {
 		void cancel(uint32_t event_id);
 
 	private:
-		class event {
-			public:
-				/* pass sleep_interval=0 for a non-sleeping event watcher */
-				event(timeval start_time, void (*event_callback)(void *), useconds_t sleep_interval) 
-					: t(start_time), event_fn(event_callback), sleep_ivl(sleep_interval), cancelled(false) {
-					pthread_mutex_init(&event_mtx, NULL);
-				}
-
-				~event() {
-					pthread_mutex_destroy(&event_mtx);
-				}
-
-				const timeval t;
-				void (*const event_fn)(void *);
-				pthread_mutex_t event_mtx;
-				bool cancelled;
-				const useconds_t sleep_ivl;
-			
-			private:
-				/* this class shouldn't be copied because of its mutex stuff */
-				event(const event&);
-				event& operator=(const event&);
-		
+		struct event_t {
+			timeval t;
+			void (*event_fn)(void *);
+			void *fn_args;
+			uint32_t id;
+			bool cancel;
 		}
+
+		static bool event_sort(event_t &e1, event_t &e2);
 
 		/* this class shouldn't be copied because of its mutex stuff */
 		scheduler(const scheduler&);
 		scheduler& operator=(const scheduler&);
 
-		static void wait_for_event(void *event_ptr);
+		static void watch_clock(void *coord);
 
 		thread_pool *const m_pool;
-		size_t m_max_events;
-		std::map<uint32_t, event *> m_events;
-		pthread_mutex_t m_events_mtx;
+		const size_t m_max_events;
+
+		struct coordination_t {
+			/* list of events in time ascending order */
+			std::list<event_t> events;
+			bool terminate;
+			pthread_mutex_t *mtx;
+		}
+		
+		coordination_t m_coord;
+		pthread_mutex_t m_coord_mtx;
+		
+		
 		
 		
 }; /* scheduler */
