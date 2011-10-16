@@ -25,17 +25,20 @@ thread_pool::thread_pool(size_t thread_count) : m_pool_size(thread_count), m_poo
 	//cout << "Default stack size = " << stacksize << endl;
 
 	stacksize = THREAD_POOL_STACKSIZE;
-	pthread_attr_setstacksize (&attr, stacksize);
+	if(pthread_attr_setstacksize(&attr, stacksize) != 0) {
+		throw errno;
+	}
 
 	//cout << "create " << m_pool_size << " threads" << endl; cout.flush();
 	
 	for(i = 0; i < m_pool_size; i++) {
 		m_pool[i].data.index = i;
+		/* set busy to true, thread will set it to false when its ready to work */
+		m_pool[i].data.sync.busy = true;
 		status = pthread_create(&m_pool[i].id, &attr, thread_pool::thread_loop, (void *)&m_pool[i].data);
 		if(status != 0) {
 			throw errno;
-		}
-		
+		}		
 	}
 
 	pthread_attr_destroy(&attr);
@@ -72,6 +75,7 @@ thread_pool::~thread_pool() {
  */
 int thread_pool::dispatch_thread(void (*dispatch_fn)(void *), void *args) { // , thread_pool::dispatch_id_t &did
 	int i, status;
+	bool dispatched = false;
 
 	assert(dispatch_fn != NULL);
 
@@ -85,25 +89,25 @@ int thread_pool::dispatch_thread(void (*dispatch_fn)(void *), void *args) { // ,
 				m_pool[i].data.dispatch_fn_args = args;
 				
 				/* signal the worker (its blocking on dispatch conditions) */
-				pthread_cond_signal(&m_pool[i].data.sync.dispatch);
+				if(pthread_cond_signal(&m_pool[i].data.sync.dispatch) != 0) {
+					pthread_mutex_unlock(&m_pool[i].data.sync.dispatch_mtx);
+					throw errno;
+				}
 				printf("thread_pool: sent dispatch signal to thread %d\n", m_pool[i].data.index);
 
 				m_pool[i].data.sync.busy = true;
-
-				/* increment job id to keep track of which job is which for cancellation purposes */
-				/* nevermind, this isnt actually useful
-				 *m_pool[i].data.job_id++; 
-				 *did.worker_id = i;
-				 *did.job_id = m_pool[i].data.job_id;*/
-
-				pthread_mutex_unlock(&m_pool[i].data.sync.dispatch_mtx);
-				/* return out of this for loop because we found a worker */
+				
+				dispatched = true;
+			}
+			
+			if(pthread_mutex_unlock(&m_pool[i].data.sync.dispatch_mtx) != 0) {
+				throw errno;
+			}
+		
+			if(dispatched) { /* return out of this for loop because we found a worker */
 				return 0;
 			}
-			else {
-				pthread_mutex_unlock(&m_pool[i].data.sync.dispatch_mtx);
-			}
-		}  
+		} /* status == 0 */
 		else if(status == EBUSY) { /* this thread is busy right now */
 			//do nothing
 		}
@@ -126,7 +130,9 @@ bool thread_pool::thread_avail() {
 		/* we locked the dispatch_mtx, so this thread is available */
 		if(status == 0) {
 			available = !m_pool[i].data.sync.busy;
-			pthread_mutex_unlock(&m_pool[i].data.sync.dispatch_mtx);
+			if(pthread_mutex_unlock(&m_pool[i].data.sync.dispatch_mtx) != 0) {
+				throw errno;
+			}
 
 			/* its maybe possible theres a timing window where busy and mtx are not in sync
  			 * so we check to be sure busy is false;
@@ -153,7 +159,9 @@ void *thread_pool::thread_loop(void *thread_data) {
 	thread_data_t *mydata = (thread_data_t *) thread_data;
 
 	/* lock dispatch mutex in order to wait */
-	pthread_mutex_lock(&mydata->sync.dispatch_mtx);
+	if(pthread_mutex_lock(&mydata->sync.dispatch_mtx) != 0) {
+		throw errno;
+	}
 
 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 	pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
@@ -174,6 +182,7 @@ void *thread_pool::thread_loop(void *thread_data) {
 		 * and then relocks it just before waking up from a signal
 		 */
 		if( pthread_cond_wait(&mydata->sync.dispatch, &mydata->sync.dispatch_mtx) != 0) {
+			pthread_mutex_unlock(&mydata->sync.dispatch_mtx);
 			throw errno;
 		}
 		printf("thread %d: calling dispatch_fn...\n", mydata->index);

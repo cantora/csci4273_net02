@@ -4,6 +4,7 @@
 #include <cerrno>
 #include <cassert>
 #include <cstdio>
+#include <algorithm>
 
 #include "time_util.h"
 
@@ -16,14 +17,17 @@ scheduler::scheduler(size_t max_events, thread_pool *pool) : m_max_events(max_ev
 	assert(m_pool != NULL);
 
 	pthread_mutex_init(&m_coord_mtx, NULL);
+	pthread_cond_init(&m_terminate, NULL);
 
 	/* init m_coord structure */
 	m_coord.terminate = false;
 	m_coord.mtx_p = &m_coord_mtx;
+	m_coord.term_p = &m_terminate;
+	m_coord.tp_p = m_pool;
 
-	/* keep trying to get a thread for our watchdog */
+	/* keep trying to get a thread for our watch thread */
 	while(m_pool->dispatch_thread(scheduler::watch_clock, &m_coord) < 0) {
-		usleep(100000); /* 0.1 secs */
+		usleep(10000); /* 0.01 secs */
 	}
 }
 
@@ -34,11 +38,33 @@ scheduler::scheduler(size_t max_events, thread_pool *pool) : m_max_events(max_ev
  * to any stuff in this object.
  */
 scheduler::~scheduler() {
-	/* shut down watchdog thread */
+	int status;
+
+	/* shut down watch thread thread */
+	while( (status = pthread_mutex_trylock(&m_coord_mtx) ) != 0) {
+		if(status != EBUSY) {
+			throw errno;
+		}
+		usleep(1000); /* 0.001 secs */
+	}	
 	
+	/* got lock, now tell thread to terminate */
+	m_coord.terminate = true;
+		
+	/* wait for thread to exit */
+	printf("scheduler: waiting for termination of watch thread...\n");
+	if(pthread_cond_wait(&m_terminate, &m_coord_mtx) != 0) {
+		throw errno;
+	}
 	
-	/* destroy mutex */
+	printf("scheduler: watch thread terminated.\n");
+	if(pthread_mutex_unlock(&m_coord_mtx) != 0) {
+		throw errno;
+	}
+
+	/* destroy mutex and cond */
 	pthread_mutex_destroy(&m_coord_mtx);
+	pthread_cond_destroy(&m_terminate);
 }
 
 /* returns 0 if event was successfully scheduled, and
@@ -54,7 +80,6 @@ int scheduler::schedule(void (*event_fn)(void *), void *args, int interval, uint
 	event_t e;
 	
 	assert(event_fn != NULL);
-	assert(args != NULL);
 	assert(interval > 0);
 
 	/* first get the offset from "now" so its as 
@@ -70,8 +95,7 @@ int scheduler::schedule(void (*event_fn)(void *), void *args, int interval, uint
 		usleep(1000); /* 0.001 secs */
 	}
 
-	/* we have a lock, so make a new event */
-		
+	/* we have a lock, so make a new event */		
 	if(m_coord.events.size() >= m_max_events) {
 		return -1;
 	}
@@ -82,11 +106,12 @@ int scheduler::schedule(void (*event_fn)(void *), void *args, int interval, uint
 	e.fn_args = args;
 	e.id = event_id;
 	e.cancel = false;	
-	
+
+	printf("scheduler: create event %d...\n", event_id);	
 	m_coord.events.push_back(e);
-	m_coord.events.sort(event_sort); /* sort by time ascending */
+	m_coord.events.sort(event_sort_time_asc); /* sort by time ascending */
 	
-	/* unlock m_events */
+	/* unlock m_coord */
 	pthread_mutex_unlock(&m_coord_mtx);
 
 	return 0;
@@ -95,12 +120,48 @@ int scheduler::schedule(void (*event_fn)(void *), void *args, int interval, uint
 /* if e1.t is greater than e2.t, return false, else return true.
  * in otherwords, if e1.t <= e2.t, e1 goes first in the order.
  */
-bool scheduler::event_sort(scheduler::event_t &e1, scheduler::event_t &e2) {
+bool scheduler::event_sort_time_asc(scheduler::event_t &e1, scheduler::event_t &e2) {
 	return (!timercmp(&e1.t, &e2.t, >) );
 }
 
-void scheduler::cancel(uint32_t event_id) {
+void scheduler::id_to_event(uint32_t event_id, std::list<event_t>::iterator &itr) { 
+	for(itr = m_coord.events.begin(); itr != m_coord.events.end(); itr++) {
+		if(itr->id == event_id) {
+			return;
+		}
+	}
+}
 
+/* returns negative value if the event was not found
+ * otherwise returns 0 if the event was successfully
+ * cancelled.
+ */
+int scheduler::cancel(uint32_t event_id) {
+	int status, result;
+	list<event_t>::iterator itr;
+		
+	while( (status = pthread_mutex_trylock(&m_coord_mtx) ) != 0) {
+		if(status != EBUSY) {
+			throw errno;
+		}
+		usleep(1000); /* 0.001 secs */
+	}
+
+	id_to_event(event_id, itr);
+
+	if(itr != m_coord.events.end() ) {
+		printf("scheduler: set cancel for event %d...\n", event_id);
+		itr->cancel = true;
+		result = 0;
+	}
+	else {
+		result = -1;
+	}
+	
+	/* unlock m_coord */
+	pthread_mutex_unlock(&m_coord_mtx);
+	
+	return result;
 }
 
 
@@ -114,10 +175,13 @@ void scheduler::cancel(uint32_t event_id) {
 void scheduler::watch_clock(void *coord) {
 	coordination_t *c = (coordination_t *) coord;
 	int status;
-	list<event_t>::const_iterator itr;
+	list<event_t>::iterator itr;
+	timeval now;
+
+	printf("watch thread: entering watch loop...\n");
 
 	while(1) {
-		usleep(10000); /* best case scheduler resolution: 0.01 seconds */
+		usleep(100); /* best case scheduler resolution: 0.0001 seconds */
 
 		/* need to get a lock on coord to make a new event */
 		if( (status = pthread_mutex_trylock(c->mtx_p) ) != 0) {
@@ -128,17 +192,45 @@ void scheduler::watch_clock(void *coord) {
 		}
 
 		/* we have a lock on m_coord */
-		if(c->terminate) {
-			pthread_mutex_unlock(c->mtx_p);
+		if(c->terminate) { /* we are destructing */
+			printf("watch thread: terminate...\n");
+			if(pthread_cond_signal(c->term_p) != 0) {
+				throw errno;
+			}
+
+			if(pthread_mutex_unlock(c->mtx_p) != 0) {
+				throw errno;
+			}
 			return;
 		}
 
 		if(c->events.size() < 1) {
 			goto unlock_coord_mtx;
 		}
-		
-		for(itr = c->events.begin(); itr != c->events.end(); itr++) {
-			//check if time is passed
+				
+		for(itr = c->events.begin(); itr != c->events.end(); ) {
+			list<event_t>::iterator tmp = itr++; /* use temp iterator so we can delete */
+			if(tmp->cancel) {
+				printf("watch thread: cancel event %d...\n", tmp->id);
+				c->events.erase(tmp);
+				continue;
+			}
+
+			gettimeofday(&now, NULL);
+			if( timercmp(&now, &tmp->t, <) ) {
+				/* the earliest event is not ready,
+				 * certainly nothing after it will be ready
+				 */
+				break; 
+			}
+
+			printf("watch thread: trigger event %d...\n", tmp->id);
+			while(c->tp_p->dispatch_thread(tmp->event_fn, tmp->fn_args) < 0) {
+				usleep(100);
+			}
+			
+			printf("watch thread: erase event %d...\n", tmp->id);
+			c->events.erase(tmp);
 		}
 
 	unlock_coord_mtx:
