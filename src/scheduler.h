@@ -2,6 +2,7 @@
 #define SCHEDULER_H
 
 #include <cstdlib>
+#include <list>
 
 extern "C" {
 #include <sys/time.h>
@@ -18,7 +19,7 @@ class scheduler {
 		scheduler(size_t max_events, thread_pool *pool);
 		~scheduler();
 
-		uint32_t schedule(void (*event_fn)(void *), void *args, int interval);
+		int schedule(void (*event_fn)(void *), void *args, int interval, uint32_t &event_id);
 		void cancel(uint32_t event_id);
 
 	private:
@@ -28,7 +29,7 @@ class scheduler {
 			void *fn_args;
 			uint32_t id;
 			bool cancel;
-		}
+		};
 
 		static bool event_sort(event_t &e1, event_t &e2);
 
@@ -40,19 +41,18 @@ class scheduler {
 
 		thread_pool *const m_pool;
 		const size_t m_max_events;
+		uint32_t m_event_counter;
 
 		struct coordination_t {
 			/* list of events in time ascending order */
 			std::list<event_t> events;
 			bool terminate;
-			pthread_mutex_t *mtx;
-		}
+			pthread_mutex_t *mtx_p;
+		};
 		
 		coordination_t m_coord;
 		pthread_mutex_t m_coord_mtx;
-		
-		
-		
+				
 		
 }; /* scheduler */
 

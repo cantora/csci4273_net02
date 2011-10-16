@@ -20,6 +20,7 @@ message::message(char *msg, size_t msg_len) : m_msg(msg), m_msg_len(msg_len) {
 }
 
 message::~message() {
+/*
 	if(MSG_TYPE != MESSAGE_STATIC) {
 		char *hdr;
 	
@@ -31,6 +32,7 @@ message::~message() {
 
 		delete[] m_msg;
 	}
+*/
 }
 
 void message::add_header(char *header, size_t hdr_len) {

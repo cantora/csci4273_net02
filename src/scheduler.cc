@@ -5,11 +5,12 @@
 #include <cassert>
 #include <cstdio>
 
+#include "time_util.h"
 
 using namespace net02;
 using namespace std;
 
-scheduler::scheduler(size_t max_events, thread_pool *pool) : m_max_events(max_events), m_pool(pool) {
+scheduler::scheduler(size_t max_events, thread_pool *pool) : m_max_events(max_events), m_pool(pool), m_event_counter(0) {
 
 	assert(m_max_events > 0);
 	assert(m_pool != NULL);
@@ -18,10 +19,10 @@ scheduler::scheduler(size_t max_events, thread_pool *pool) : m_max_events(max_ev
 
 	/* init m_coord structure */
 	m_coord.terminate = false;
-	m_coord.mtx = &m_coord_mtx;
+	m_coord.mtx_p = &m_coord_mtx;
 
 	/* keep trying to get a thread for our watchdog */
-	while(m_pool->dispatch_thread(scheduler::watch_clock, ) < 0) {
+	while(m_pool->dispatch_thread(scheduler::watch_clock, &m_coord) < 0) {
 		usleep(100000); /* 0.1 secs */
 	}
 }
@@ -50,7 +51,7 @@ scheduler::~scheduler() {
 int scheduler::schedule(void (*event_fn)(void *), void *args, int interval, uint32_t &event_id) {
 	int status;
 	list<event_t>::iterator itr;
-	event e;
+	event_t e;
 	
 	assert(event_fn != NULL);
 	assert(args != NULL);
@@ -62,7 +63,7 @@ int scheduler::schedule(void (*event_fn)(void *), void *args, int interval, uint
 	time_util::useconds_from_now(interval, e.t);
 
 	/* need to get a lock on m_coord to make a new event */
-	while( (status = pthread_mutex_trylock(m_coord_mtx) ) != 0) {
+	while( (status = pthread_mutex_trylock(&m_coord_mtx) ) != 0) {
 		if(status != EBUSY) {
 			throw errno;
 		}
@@ -74,7 +75,7 @@ int scheduler::schedule(void (*event_fn)(void *), void *args, int interval, uint
 	if(m_coord.events.size() >= m_max_events) {
 		return -1;
 	}
-	event_id = ++event_counter;
+	event_id = m_event_counter++;
 		
 	/* e.t already initialized */	
 	e.event_fn = event_fn;
@@ -86,7 +87,7 @@ int scheduler::schedule(void (*event_fn)(void *), void *args, int interval, uint
 	m_coord.events.sort(event_sort); /* sort by time ascending */
 	
 	/* unlock m_events */
-	pthread_mutex_unlock(m_events_mutex);
+	pthread_mutex_unlock(&m_coord_mtx);
 
 	return 0;
 }
@@ -95,7 +96,7 @@ int scheduler::schedule(void (*event_fn)(void *), void *args, int interval, uint
  * in otherwords, if e1.t <= e2.t, e1 goes first in the order.
  */
 bool scheduler::event_sort(scheduler::event_t &e1, scheduler::event_t &e2) {
-	return (!timercmp(e1.t, e2.t, >) );
+	return (!timercmp(&e1.t, &e2.t, >) );
 }
 
 void scheduler::cancel(uint32_t event_id) {
@@ -111,7 +112,7 @@ void scheduler::cancel(uint32_t event_id) {
  * (even after time t if we oversleep a little)
  */
 void scheduler::watch_clock(void *coord) {
-	coordination_t *c = (coord_t *) coord;
+	coordination_t *c = (coordination_t *) coord;
 	int status;
 	list<event_t>::const_iterator itr;
 
@@ -119,7 +120,7 @@ void scheduler::watch_clock(void *coord) {
 		usleep(10000); /* best case scheduler resolution: 0.01 seconds */
 
 		/* need to get a lock on coord to make a new event */
-		if( (status = pthread_mutex_trylock(*(coord->mtx)) ) != 0) {
+		if( (status = pthread_mutex_trylock(c->mtx_p) ) != 0) {
 			if(status != EBUSY) {
 				throw errno;
 			}
@@ -127,20 +128,20 @@ void scheduler::watch_clock(void *coord) {
 		}
 
 		/* we have a lock on m_coord */
-		if(coord->terminate) {
-			pthread_mutex_unlock(*(coord->mtx) );
+		if(c->terminate) {
+			pthread_mutex_unlock(c->mtx_p);
 			return;
 		}
 
-		if(coord->events.size() < 1) {
+		if(c->events.size() < 1) {
 			goto unlock_coord_mtx;
 		}
 		
-		for(itr = coord->events.begin(); itr != coord->events.end(); itr++) {
+		for(itr = c->events.begin(); itr != c->events.end(); itr++) {
 			//check if time is passed
 		}
 
 	unlock_coord_mtx:
-		pthread_mutex_unlock(*(coord->mtx) );
+		pthread_mutex_unlock(c->mtx_p);
 	} /* while(1) */
 }

@@ -5,8 +5,6 @@
 
 extern "C" {
 #include <sys/time.h>
-#include <stdint.h>
-#include <unistd.h>
 }
 
 namespace net02 {

@@ -1,5 +1,7 @@
 #include "time_util.h"
 
+#include <cassert>
+
 using namespace std;
 using namespace net02;
 
@@ -21,6 +23,6 @@ void time_util::useconds_from_now(int interval, timeval &t) {
 
 	delta.tv_sec = interval/USECS_PER_SEC;
 	delta.tv_usec = interval % 1000000;
-	timeradd(now, delta, t);
+	timeradd(&now, &delta, &t);
 
 }
