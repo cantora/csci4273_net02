@@ -9,12 +9,7 @@ C_FLAGS 		= -Wall $(OPTIMIZE) $(DBG) -w $(DEFINES) $(INCLUDES) -pthread
 CXX_FLAGS		= $(C_FLAGS)
 CXX_CMD			= g++ $(CXX_FLAGS)
 
-
 BUILD 			= ./build
-
-BOOST_TEST_FLAGS	= -L/opt/local/lib
-BOOST_TEST_LIB		= -lboost_test_exec_monitor
-BOOST_TEST_INCLUDE	= -I/opt/local/include
 
 #LIB			= -lpthread
 
@@ -24,8 +19,8 @@ DEPENDS			:= $(OBJECTS:.o=.d)
 DEPSDIR			= $(BUILD)
 DEP_FLAGS		= -MMD -MP -MF $(patsubst %.o, %.d, $@)
 
+DRIVERS 		= $(notdir $(patsubst %.cc, %, $(wildcard ./driver/*.cc) ) )
 TESTS 			= $(notdir $(patsubst %.cc, %, $(wildcard ./test/*.cc) ) )
-TEST_OUTPUTS	= $(foreach test, $(TESTS), $(BUILD)/test/$(test))
 
 default: all
 
@@ -35,11 +30,25 @@ all: blah
 $(BUILD)/%.o: src/%.cc src/%.h
 	$(CXX_CMD) $(DEP_FLAGS) -c $< -o $@
 
+$(BUILD)/driver/%.o: driver/%.cc $(OBJECTS)
+	$(CXX_CMD) $(DEP_FLAGS) -c $< -o $@
+
+$(BUILD)/driver/%: $(BUILD)/driver/%.o $(OBJECTS)
+	$(CXX_CMD) $+ $(LIB) -o $@
+
 $(BUILD)/test/%.o: test/%.cc $(OBJECTS)
 	$(CXX_CMD) $(DEP_FLAGS) -c $< -o $@
 
 $(BUILD)/test/%: $(BUILD)/test/%.o $(OBJECTS)
 	$(CXX_CMD) $+ $(LIB) -o $@
+
+define driver-template
+$(1): $$(BUILD)/driver/$(1) 
+	$(BUILD)/driver/$(1)
+endef
+
+.PHONY: $(DRIVERS) 
+$(foreach driver, $(DRIVERS), $(eval $(call test-template,$(driver)) ) )
 
 define test-template
 $(1): $$(BUILD)/test/$(1) 

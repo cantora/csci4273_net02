@@ -20,19 +20,15 @@ message::message(char *msg, size_t msg_len) : m_msg(msg), m_msg_len(msg_len) {
 }
 
 message::~message() {
-/*
-	if(MSG_TYPE != MESSAGE_STATIC) {
-		char *hdr;
+	char *hdr;
 	
-		while(!m_headers.empty()) {
-			hdr = m_headers.front().first;
-			delete[] hdr;
-			m_headers.pop_front();
-		}
-
-		delete[] m_msg;
+	while(!m_dynamic_headers.empty()) {
+		hdr = m_dynamic_headers.front();
+		delete[] hdr;
+		m_dynamic_headers.pop_front();
 	}
-*/
+
+	delete[] m_msg;
 }
 
 void message::add_header(char *header, size_t hdr_len) {
@@ -40,6 +36,7 @@ void message::add_header(char *header, size_t hdr_len) {
 	assert(hdr_len > 0);
 
 	m_headers.push_front(make_pair(header, hdr_len));
+	m_dynamic_headers.push_front(header);
 }
 
 /* 
@@ -47,8 +44,6 @@ void message::add_header(char *header, size_t hdr_len) {
  * strip header will want to strip only part 
  * of a header, thus it just pops the top
  * header off the stack.
- * the caller has the responsibility for 
- * deleting the data at the returned char *
  */
 char *message::strip_header(size_t hdr_len) {
 	char *hdr;
@@ -76,7 +71,7 @@ size_t message::len() const {
 
 void message::flatten(char *buffer) const {
 	list< pair<char *, size_t> >::const_iterator itr;
-	
+
 	for(itr = m_headers.begin(); itr != m_headers.end(); itr++) {
 		memcpy(buffer, itr->first, itr->second);
 		buffer += itr->second;

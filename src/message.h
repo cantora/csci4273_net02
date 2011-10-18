@@ -19,11 +19,16 @@ class message {
 		void flatten(char *buffer) const;
 
 	private:
-		
 		std::list< std::pair<char *, size_t> > m_headers;
 
-		const char *m_msg;
-		const size_t m_msg_len;
+		/* keep a record of every header given
+		 * to add_header and delete all of them
+ 		 * when this object destructs
+ 		 */
+		std::list<char *> m_dynamic_headers;
+
+		char *m_msg;
+		size_t m_msg_len;
 		
 }; /* message */
 
