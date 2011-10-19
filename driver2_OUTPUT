@@ -1,0 +1,28 @@
+> make driver2
+./build/driver/driver2
+in test_fn2 in test_fn2 200100
+
+in test_fn1 300
+in test_fn1 1100
+in test_fn3 1120
+> make driver2
+./build/driver/driver2
+in test_fn2 in test_fn2 200100
+
+in test_fn1 300
+in test_fn1 1100
+in test_fn3 1120
+> make driver2
+./build/driver/driver2
+in test_fn2 100
+in test_fn1 300
+in test_fn2 200
+in test_fn1 1100
+in test_fn3 1120
+> make driver2
+./build/driver/driver2
+in test_fn2 100
+in test_fn2 200
+in test_fn1 300
+in test_fn1 1100
+in test_fn3 1120

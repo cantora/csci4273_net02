@@ -34,13 +34,13 @@ main ( )
     int a1 = 100, a2 = 200, a3 = 300, a4 = 5000, a5 = 1100, a6 = 1120;
     uint32_t i1, i2, i3, i4, i5, i6;
 
-    es.schedule(test_fn1, (void *)&a5, m5, i1);
-    es.schedule(test_fn2, (void *)&a1, m1, i2);
-    es.schedule(test_fn3, (void *)&a4, m4, i3);
-    es.schedule(test_fn1, (void *)&a3, m3, i4);
+    es.schedule(test_fn1, (void *)&a5, m5, i1); /* 4th: should output "in test_fn1 1100" */
+    es.schedule(test_fn2, (void *)&a1, m1, i2); /* 1st: should output "in test_fn2 100" */
+    es.schedule(test_fn3, (void *)&a4, m4, i3); /* 6th: should NOT output "in test_fn3 5000" */
+    es.schedule(test_fn1, (void *)&a3, m3, i4); /* 3rd/2nd: should output "in test_fn1 300 */
     es.cancel(i3);
-    es.schedule(test_fn2, (void *)&a2, m2, i5);
-    es.schedule(test_fn3, (void *)&a6, m6, i6);
+    es.schedule(test_fn2, (void *)&a2, m2, i5); /* 2nd/3rd: should output "in test_fn2 200 */
+    es.schedule(test_fn3, (void *)&a6, m6, i6); /* 5th: should output "in test_fn3 1120 */
 
     sleep(5);
 }

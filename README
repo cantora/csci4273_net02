@@ -1,0 +1,52 @@
+programming assignment 2, anthony cantor (moodle user: gubbogabbo)
+
+compiling:
+to run the provided driver programs:
+> make driver1
+> make driver2
+> make driver3
+
+by default the debug log messages of thread pool and scheduler are turned on.
+to disable this output, comment out the DEFINES line in Makefile.
+
+the files driver1_OUTPUT, driver2_OUTPUT, and driver3_OUTPUT have the output
+for the respective driver tests from when i ran them (with debug logging off).
+
+NOTE for driver2_OUTPUT: my scheduler class interprets the interval parameter as
+     	 		 microseconds, so i have provided several test outputs for
+			 for driver2. the last one shows the expected order of 
+			 print statements, but in some cases events that are 
+			 scheduled close to one another are out of order 
+			 because of the tight timing difference. also, because
+			 cout is not atomic like printf, sometimes the cout
+			 statements are interleaved, this is shown in the first
+			 test output for driver2. it wasnt clear from the assignment
+			 what accuracy the scheduler needed to provide, so i hope this
+			 is acceptable.
+
+
+overview: i think everything is running fine in general. i havent really found any issues.
+
+contents of project:
+	 ./src: 
+	 	thread pool: this implements a thread pool by creating N threads at construction, passing a data struct which
+		       	     contains a syncronization struct consisting of a mutex and condition variable. at thread startup
+		       	     each thread locks its mutex and blocks on the condition variable. to dispatch a thread the main
+			     thread/object finds a thread with an unlocked mutex, locks it, then signals the condition variable,
+			     then unlocks the mutex, at which point the signaled thread will check the shared data struct for
+			     a dispatch function and arguments, and subsequently call that function. at destruction this class
+			     cancels and then joins all the worker threads.
+
+		scheduler: this uses a thread pool to schedule events. at construction it creates one "watcher" thread which
+			   periodically sleeps, and then trys to lock a mutex to check the main thread's sorted list of events.
+			   since the list is sorted by time ascending, the watcher thread iterates through the list, triggering
+			   events (calling dispatch_thread on the event function) until it finds an event that hasnt timed out, 
+			   it then goes back to sleep. it also checks to see if the cancel flag has been set before triggering.
+
+		message: this is pretty straight forward, just a linked list of (char *, size_t).
+
+		log/time_util: these are just small utility headers, log has the debug log macro and time_util has some usefull time functions.
+
+	./test:	this stuff is just some extra testing programs i implemented, you can run them if you want. they are generally trying to stress
+		thread_pool and scheduler more thoroughly than the driver programs. some of the scheduling tests that are testing timing stuff
+		dont always pass.

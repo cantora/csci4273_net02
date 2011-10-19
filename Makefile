@@ -1,6 +1,7 @@
 .SECONDARY:
 
-DEFINES 		= 
+#DEFINES 		= -DNET02_DEBUG_LOG
+
 INCLUDES 		+= -iquote"./src" 
 DBG			= -g
 #OPTIMIZE		= -Os
@@ -27,7 +28,7 @@ default: all
 .PHONY: all
 all: blah
 
-$(BUILD)/%.o: src/%.cc src/%.h
+$(BUILD)/%.o: src/%.cc src/%.h src/log.h ./Makefile
 	$(CXX_CMD) $(DEP_FLAGS) -c $< -o $@
 
 $(BUILD)/driver/%.o: driver/%.cc $(OBJECTS)

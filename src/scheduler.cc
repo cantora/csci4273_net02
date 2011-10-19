@@ -8,6 +8,8 @@
 
 #include "time_util.h"
 
+#include "log.h"
+
 using namespace net02;
 using namespace std;
 

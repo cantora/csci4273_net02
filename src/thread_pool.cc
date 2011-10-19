@@ -18,7 +18,7 @@ thread_pool::thread_pool(size_t thread_count) : m_pool_size(thread_count), m_poo
 
 	assert(thread_count > 0);
 	
-	/* Initialize and set thread detached attribute */
+	/* Initialize and set thread attributes */
 	pthread_attr_init(&attr);
 
 	//pthread_attr_getstacksize (&attr, &stacksize);

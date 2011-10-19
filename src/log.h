@@ -3,8 +3,8 @@
 
 #include <cstdio>
 
-#ifdef NETO2_DEBUG_LOG
-#define NET02_LOG(fmt, ...) printf(fmt, ## __VA_ARGS__ 
+#ifdef NET02_DEBUG_LOG
+#define NET02_LOG(fmt, ...) printf(fmt, ## __VA_ARGS__ )
 #else
 #define NET02_LOG(fmt, ...) ;
 #endif

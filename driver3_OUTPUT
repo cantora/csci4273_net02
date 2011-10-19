@@ -1,0 +1,8 @@
+./build/driver/driver3 
+Message length = 133
+Message: mmmmmmmmmmmmmmmmmmmmmmmmkkkkhhhhhaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+
+Stripped header: mmmmmmmmmmmmmmmmmmmmmmmm
+Stripped header: kkkk
+Stripped header: hhhhh
+Message: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
