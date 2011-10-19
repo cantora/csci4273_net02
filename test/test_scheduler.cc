@@ -14,10 +14,11 @@ using namespace net02;
 using namespace std;
 
 
-void test_construct() {
+bool test_construct() {
 	thread_pool tp(10);
 	scheduler s(UINT_MAX, &tp);
-	 
+
+	return true;	 
 }
 
 #define EVENT_COUNT 300
@@ -25,11 +26,11 @@ int flags[EVENT_COUNT];
 int flag_counter = 0;
 
 void set_flag(void *id) {
-	flags[flag_counter] = (long) id;
-	flag_counter++;
+	flags[flag_counter++] = (long) id;
+	//flag_counter++;
 }
 
-void test_schedule_events() {
+bool test_schedule_events() {
 	thread_pool tp(10);
 	scheduler s(UINT_MAX, &tp);
 	uint32_t event_id;
@@ -39,14 +40,20 @@ void test_schedule_events() {
 
 	for(i = 0; i < EVENT_COUNT; i++) {
 		status = s.schedule(set_flag, (void *)i, (i+1)*10000, event_id); 
-		assert(status == 0);
+		if(status != 0) {
+			return false;
+		}
 	}
 	
 	sleep(6);
 	for(i = 0; i < EVENT_COUNT-1; i++) {
 		printf("i,i+1: %d, %d\n", flags[i], flags[i+1]);
-		assert( (flags[i] + 1) == flags[i+1] );
+		if( (flags[i] + 1) != flags[i+1] ) {
+			return false;
+		}
 	}
+
+	return true;
 }
 
 void set_flag_alternate(void *id) {
@@ -55,7 +62,7 @@ void set_flag_alternate(void *id) {
 	flag_counter += 2;
 }
 
-void test_cancel_events() {
+bool test_cancel_events() {
 	thread_pool tp(10);
 	scheduler s(UINT_MAX, &tp);
 	uint32_t event_id;
@@ -66,7 +73,9 @@ void test_cancel_events() {
 
 	for(i = 0; i < EVENT_COUNT; i++) {
 		status = s.schedule(set_flag_alternate, (void *)i, (i+1)*10000, event_id); 
-		assert(status == 0);
+		if(status != 0) {
+			return false;
+		}
 
 		if(event_id % 2 == 0) {
 			s.cancel(event_id);
@@ -77,13 +86,19 @@ void test_cancel_events() {
 	for(i = 0; i < EVENT_COUNT-1; i++) {
 		if(i % 2 == 0) {
 			printf("%d: %d\n", i, flags[i] );
-			assert(flags[i] == -1);
+			if(flags[i] != -1) {
+				return false;
+			}
 		}
 		else {
 			printf("%d, %d: %d, %d\n", i, i+2, flags[i], flags[i+2]);
-			assert( (flags[i] + 2) == flags[i+2] );
+			if( (flags[i] + 2) != flags[i+2] ) {
+				return false;
+			}
 		}
 	}
+
+	return true;
 }
 
 struct blah_t {
@@ -111,7 +126,7 @@ void get_diff(void *args) {
 	//printf("get_diff: %d\n", *((long *) args));
 }
 
-void test_timing() {
+bool test_timing() {
 	thread_pool tp(10);
 	scheduler s(UINT_MAX, &tp);
 	int i, status, interval;
@@ -125,33 +140,49 @@ void test_timing() {
 		blah.index = i;
 		time_util::useconds_from_now(interval, blah.t);
 		status = s.schedule(get_diff, (void *) &blah, interval, event_id); 
-		assert(status == 0);
+		if(status != 0) {
+			return false;
+		}
+
 		usleep(interval + 1000000);
 		printf("diff for event %d: %f\n", i, difftimes[i]);
+		if(difftimes[i] > 0.001) {
+			return false;
+		}
 	}
+
+	return true;
 }	
 
 int main() {
+	bool tests[4];
+	int i = 0;
+
 	try {
 	cout << "BEGIN TEST SCHEDULER" << endl;
 
-/*	cout << "TEST CONSTRUCT" << endl;
-	test_construct();
+	cout << "TEST CONSTRUCT" << endl;
+	tests[i++] = test_construct();
 
 	cout << "TEST SCHEDULE EVENTS" << endl;
-	test_schedule_events();
+	tests[i++] = test_schedule_events();
 
 	cout << "TEST CANCEL EVENTS" << endl;
-	test_cancel_events();
-*/
+	tests[i++] = test_cancel_events();
+
 	cout << "TEST TIMING" << endl;
-	test_timing();	
+	tests[i++] = test_timing();	
 
 	cout << "END TEST SCHEDULER" << endl;
 	} /*try*/
 	catch(int e) {
 		cout << "caught exception: " << strerror(e) << endl;
 		return 1;
+	}
+
+	cout << endl;
+	for(i = 0; i < 4; i++) {
+		cout << "test" << i << ": " << (tests[i]? "+" : "-") << endl;
 	}
 
 	return 0;

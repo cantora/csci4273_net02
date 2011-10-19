@@ -43,12 +43,12 @@ $(BUILD)/test/%: $(BUILD)/test/%.o $(OBJECTS)
 	$(CXX_CMD) $+ $(LIB) -o $@
 
 define driver-template
-$(1): $$(BUILD)/driver/$(1) 
+$(1): $$(BUILD)/driver/$(1)
 	$(BUILD)/driver/$(1)
 endef
 
 .PHONY: $(DRIVERS) 
-$(foreach driver, $(DRIVERS), $(eval $(call test-template,$(driver)) ) )
+$(foreach driver, $(DRIVERS), $(eval $(call driver-template,$(driver)) ) )
 
 define test-template
 $(1): $$(BUILD)/test/$(1) 

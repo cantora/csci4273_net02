@@ -52,12 +52,12 @@ scheduler::~scheduler() {
 	m_coord.terminate = true;
 		
 	/* wait for thread to exit */
-	printf("scheduler: waiting for termination of watch thread...\n");
+	NET02_LOG("scheduler: waiting for termination of watch thread...\n");
 	if(pthread_cond_wait(&m_terminate, &m_coord_mtx) != 0) {
 		throw errno;
 	}
 	
-	printf("scheduler: watch thread terminated.\n");
+	NET02_LOG("scheduler: watch thread terminated.\n");
 	if(pthread_mutex_unlock(&m_coord_mtx) != 0) {
 		throw errno;
 	}
@@ -107,7 +107,7 @@ int scheduler::schedule(void (*event_fn)(void *), void *args, int interval, uint
 	e.id = event_id;
 	e.cancel = false;	
 
-	printf("scheduler: create event %d...\n", event_id);	
+	NET02_LOG("scheduler: create event %d...\n", event_id);	
 	m_coord.events.push_back(e);
 	m_coord.events.sort(event_sort_time_asc); /* sort by time ascending */
 	
@@ -150,7 +150,7 @@ int scheduler::cancel(uint32_t event_id) {
 	id_to_event(event_id, itr);
 
 	if(itr != m_coord.events.end() ) {
-		printf("scheduler: set cancel for event %d...\n", event_id);
+		NET02_LOG("scheduler: set cancel for event %d...\n", event_id);
 		itr->cancel = true;
 		result = 0;
 	}
@@ -178,7 +178,7 @@ void scheduler::watch_clock(void *coord) {
 	list<event_t>::iterator itr;
 	timeval now;
 
-	printf("watch thread: entering watch loop...\n");
+	NET02_LOG("watch thread: entering watch loop...\n");
 
 	while(1) {
 		usleep(100); /* best case scheduler resolution: 0.0001 seconds */
@@ -193,7 +193,7 @@ void scheduler::watch_clock(void *coord) {
 
 		/* we have a lock on m_coord */
 		if(c->terminate) { /* we are destructing */
-			printf("watch thread: terminate...\n");
+			NET02_LOG("watch thread: terminate...\n");
 			if(pthread_cond_signal(c->term_p) != 0) {
 				throw errno;
 			}
@@ -211,7 +211,7 @@ void scheduler::watch_clock(void *coord) {
 		for(itr = c->events.begin(); itr != c->events.end(); ) {
 			list<event_t>::iterator tmp = itr++; /* use temp iterator so we can delete */
 			if(tmp->cancel) {
-				printf("watch thread: cancel event %d...\n", tmp->id);
+				NET02_LOG("watch thread: cancel event %d...\n", tmp->id);
 				c->events.erase(tmp);
 				continue;
 			}
@@ -224,12 +224,12 @@ void scheduler::watch_clock(void *coord) {
 				break; 
 			}
 
-			printf("watch thread: trigger event %d...\n", tmp->id);
+			NET02_LOG("watch thread: trigger event %d...\n", tmp->id);
 			while(c->tp_p->dispatch_thread(tmp->event_fn, tmp->fn_args) < 0) {
 				usleep(100);
 			}
 			
-			printf("watch thread: erase event %d...\n", tmp->id);
+			NET02_LOG("watch thread: erase event %d...\n", tmp->id);
 			c->events.erase(tmp);
 		}
 

@@ -14,29 +14,26 @@ using namespace std;
  * original pointer is saved in the delete list and caller no longer has 
  * obligation to delete the stripped header.
  */
-message::message(char *msg, size_t msg_len) : m_msg(msg), m_msg_len(msg_len) {
-	assert(m_msg_len > 0);
-	assert(m_msg != NULL);
+message::message(char *msg, size_t msg_len) {
+	add_header(msg, msg_len);
 }
 
 message::~message() {
 	char *hdr;
 	
-	while(!m_dynamic_headers.empty()) {
-		hdr = m_dynamic_headers.front();
+	while(!m_to_delete.empty()) {
+		hdr = m_to_delete.front();
 		delete[] hdr;
-		m_dynamic_headers.pop_front();
+		m_to_delete.pop_front();
 	}
-
-	delete[] m_msg;
 }
 
 void message::add_header(char *header, size_t hdr_len) {
 	assert(header != NULL);
 	assert(hdr_len > 0);
 
-	m_headers.push_front(make_pair(header, hdr_len));
-	m_dynamic_headers.push_front(header);
+	m_to_delete.push_front(header);
+	m_buffers.push_front(make_pair(header, hdr_len));
 }
 
 /* 
@@ -47,13 +44,27 @@ void message::add_header(char *header, size_t hdr_len) {
  */
 char *message::strip_header(size_t hdr_len) {
 	char *hdr;
+	//pair<char *, size_t> top;
+	list< pair<char *, size_t> >::iterator itr;
 
-	assert(!m_headers.empty());
-	assert(m_headers.front().second == hdr_len);
+	assert(!m_buffers.empty());
+	assert(m_buffers.front().second >= hdr_len);
 
-	hdr = m_headers.front().first;
-	m_headers.pop_front();
+	/*for(itr = m_buffers.front(); itr != m_buffers; ) {
+		tmp = itr;
+		itr++;	
+	}*/
 
+	itr = m_buffers.begin();
+	hdr = itr->first;
+	if(hdr_len < itr->second) {
+		itr->second -= hdr_len;
+		itr->first += hdr_len;
+	}
+	else {
+		m_buffers.pop_front();
+	}
+	
 	return hdr;
 }
 
@@ -62,21 +73,19 @@ size_t message::len() const {
 	list< pair<char *, size_t> >::const_iterator itr;
 	int sum = 0;
 
-	for(itr = m_headers.begin(); itr != m_headers.end(); itr++) {
+	for(itr = m_buffers.begin(); itr != m_buffers.end(); itr++) {
 		sum += itr->second;			
 	}
 
-	return m_msg_len + sum;
+	return sum;
 }
 
 void message::flatten(char *buffer) const {
 	list< pair<char *, size_t> >::const_iterator itr;
 
-	for(itr = m_headers.begin(); itr != m_headers.end(); itr++) {
+	for(itr = m_buffers.begin(); itr != m_buffers.end(); itr++) {
 		memcpy(buffer, itr->first, itr->second);
 		buffer += itr->second;
 	}
-
-	memcpy(buffer, m_msg, m_msg_len);
 }
 

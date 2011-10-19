@@ -19,17 +19,9 @@ class message {
 		void flatten(char *buffer) const;
 
 	private:
-		std::list< std::pair<char *, size_t> > m_headers;
+		std::list< std::pair<char *, size_t> > m_buffers;
+		std::list< char * > m_to_delete;
 
-		/* keep a record of every header given
-		 * to add_header and delete all of them
- 		 * when this object destructs
- 		 */
-		std::list<char *> m_dynamic_headers;
-
-		char *m_msg;
-		size_t m_msg_len;
-		
 }; /* message */
 
 }; /* net02 */

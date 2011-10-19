@@ -3,8 +3,8 @@
 #include <iostream>
 #include <cerrno>
 #include <cassert>
-#include <cstdio>
 
+#include "log.h"
 
 using namespace net02;
 using namespace std;
@@ -93,7 +93,7 @@ int thread_pool::dispatch_thread(void (*dispatch_fn)(void *), void *args) { // ,
 					pthread_mutex_unlock(&m_pool[i].data.sync.dispatch_mtx);
 					throw errno;
 				}
-				printf("thread_pool: sent dispatch signal to thread %d\n", m_pool[i].data.index);
+				NET02_LOG("thread_pool: sent dispatch signal to thread %d\n", m_pool[i].data.index);
 
 				m_pool[i].data.sync.busy = true;
 				
@@ -169,7 +169,7 @@ void *thread_pool::thread_loop(void *thread_data) {
 	pthread_cleanup_push(thread_pool::thread_at_exit, thread_data);
 	
 	while(1) {
-		printf("thread %d: waiting for dispatch...\n", mydata->index);
+		NET02_LOG("thread %d: waiting for dispatch...\n", mydata->index);
 
 		/* set busy flag to false, indicating that
 		 *  this thread is ready for work
@@ -185,7 +185,7 @@ void *thread_pool::thread_loop(void *thread_data) {
 			pthread_mutex_unlock(&mydata->sync.dispatch_mtx);
 			throw errno;
 		}
-		printf("thread %d: calling dispatch_fn...\n", mydata->index);
+		NET02_LOG("thread %d: calling dispatch_fn...\n", mydata->index);
 		assert(mydata->sync.busy == true);
 		
 		/* do work! */
@@ -201,5 +201,5 @@ void *thread_pool::thread_loop(void *thread_data) {
 void thread_pool::thread_at_exit(void *thread_data) {
 	thread_data_t *mydata = (thread_data_t *) thread_data;
 
-	printf("thread %d: cancelled...\n", mydata->index);
+	NET02_LOG("thread %d: cancelled...\n", mydata->index);
 }

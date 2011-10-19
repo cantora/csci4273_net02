@@ -12,6 +12,8 @@ extern "C" {
 
 #include "thread_pool.h"
 
+#include "log.h"
+
 namespace net02 {
 
 class scheduler {
