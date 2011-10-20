@@ -12,6 +12,12 @@ to disable this output, comment out the DEFINES line in Makefile.
 the files driver1_OUTPUT, driver2_OUTPUT, and driver3_OUTPUT have the output
 for the respective driver tests from when i ran them (with debug logging off).
 
+NOTE for driver1: 	i modified this driver so that the value of max is being passed to the
+		  	callback function and not the address. this is so that the threads will 
+		  	not have a race condition to see the correct value of max. also i added
+		  	a call to th.thread_avail() so that the driver will not try to dispatch
+			a thread when all the threads are busy. 
+
 NOTE for driver2_OUTPUT: my scheduler class interprets the interval parameter as
      	 		 microseconds, so i have provided several test outputs for
 			 for driver2. the last one shows the expected order of 

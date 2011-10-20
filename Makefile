@@ -1,6 +1,6 @@
 .SECONDARY:
 
-#DEFINES 		= -DNET02_DEBUG_LOG
+DEFINES 		= -DNET02_DEBUG_LOG
 
 INCLUDES 		+= -iquote"./src" 
 DBG			= -g

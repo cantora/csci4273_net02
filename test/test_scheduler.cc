@@ -137,6 +137,7 @@ bool test_timing() {
 	
 	for(i = 0; i < DIFF_COUNT; i++) {
 		interval = (rand() % MAX_DELAY) + 1;
+		printf("schedule event for %f milliseconds from now\n", interval/1000.0);
 		blah.index = i;
 		time_util::useconds_from_now(interval, blah.t);
 		status = s.schedule(get_diff, (void *) &blah, interval, event_id); 

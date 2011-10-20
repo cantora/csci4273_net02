@@ -88,15 +88,14 @@ int thread_pool::dispatch_thread(void (*dispatch_fn)(void *), void *args) { // ,
 				m_pool[i].data.dispatch_fn = dispatch_fn;
 				m_pool[i].data.dispatch_fn_args = args;
 				
+				m_pool[i].data.sync.busy = true;
+				
 				/* signal the worker (its blocking on dispatch conditions) */
 				if(pthread_cond_signal(&m_pool[i].data.sync.dispatch) != 0) {
 					pthread_mutex_unlock(&m_pool[i].data.sync.dispatch_mtx);
 					throw errno;
 				}
 				NET02_LOG("thread_pool: sent dispatch signal to thread %d\n", m_pool[i].data.index);
-
-				m_pool[i].data.sync.busy = true;
-				
 				dispatched = true;
 			}
 			
@@ -127,8 +126,10 @@ bool thread_pool::thread_avail() {
 	for(i = 0; i < m_pool_size; i++) {
 		status = pthread_mutex_trylock(&m_pool[i].data.sync.dispatch_mtx);
 		
+		
 		/* we locked the dispatch_mtx, so this thread is available */
 		if(status == 0) {
+			NET02_LOG("thread_pool: found thread %d unlocked\n", i);
 			available = !m_pool[i].data.sync.busy;
 			if(pthread_mutex_unlock(&m_pool[i].data.sync.dispatch_mtx) != 0) {
 				throw errno;
@@ -138,8 +139,10 @@ bool thread_pool::thread_avail() {
  			 * so we check to be sure busy is false;
 			 */
 			if(available) {
+				NET02_LOG("thread_pool: thread %d is available\n", i);
 				return true;
 			}
+			NET02_LOG("thread_pool: thread %d is unlocked but busy\n", i);
 		}  
 		else if(status == EBUSY) { /* this thread is busy right now */
 			//do nothing
@@ -163,6 +166,7 @@ void *thread_pool::thread_loop(void *thread_data) {
 		throw errno;
 	}
 
+	mydata->sync.busy = true;
 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 	pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
 	
@@ -191,7 +195,7 @@ void *thread_pool::thread_loop(void *thread_data) {
 		/* do work! */
 		mydata->dispatch_fn(mydata->dispatch_fn_args);
 		
-		/* loop and wait on dispatch condition. note that dispatch_mtx is still locked here. */		
+		/* loop and wait on dispatch condition. note that dispatch_mtx is still locked here. */
 	}
 
 	/* shouldnt ever get here */

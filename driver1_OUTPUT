@@ -1,14 +1,14 @@
 ./build/driver/driver1 
-in test_fn 0
 in test_fn 100
 in test_fn 200
+in test_fn 0
 in test_fn 300
-in test_fn 400
 in test_fn 500
-in test_fn 600
-in test_fn 700
+in test_fn 400
 in test_fn 800
 in test_fn 900
+in test_fn 600
+in test_fn 700
 in test_fn 1000
 in test_fn 1100
 in test_fn 1200
