@@ -26,8 +26,9 @@ class thread_pool {
 		 *}
 		 */
 
-		int dispatch_thread(void (*dispatch_fn)(void *), void *arg); // dispatch_id_t &did);
+		int dispatch_thread(void (*dispatch_fn)(void *), void *arg, void (*at_exit_fn)(void *)); // dispatch_id_t &did);
 		bool thread_avail();
+		size_t size() const { return m_pool_size; }
 
 	private:
 		
@@ -61,12 +62,12 @@ class thread_pool {
 			int index;
 			void (*dispatch_fn)(void *);
 			void *dispatch_fn_args;
+			void (*at_exit_fn)(void *);
 		};
 
 		struct thread_t {
 			thread_data_t data;
-			pthread_t id;
-			
+			pthread_t id;			
 		};
 
 		thread_t *const m_pool;

@@ -26,7 +26,7 @@ TESTS 			= $(notdir $(patsubst %.cc, %, $(wildcard ./test/*.cc) ) )
 default: all
 
 .PHONY: all
-all: blah
+all: $(OBJECTS)
 
 $(BUILD)/%.o: src/%.cc src/%.h src/log.h ./Makefile
 	$(CXX_CMD) $(DEP_FLAGS) -c $< -o $@

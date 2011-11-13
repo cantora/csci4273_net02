@@ -73,7 +73,7 @@ thread_pool::~thread_pool() {
  * went ok, returns negative one to
  * indicate that all threads were busy
  */
-int thread_pool::dispatch_thread(void (*dispatch_fn)(void *), void *args) { // , thread_pool::dispatch_id_t &did
+int thread_pool::dispatch_thread(void (*dispatch_fn)(void *), void *args, void (*at_exit_fn)(void *)) { // , thread_pool::dispatch_id_t &did
 	int i, status;
 	bool dispatched = false;
 
@@ -87,7 +87,7 @@ int thread_pool::dispatch_thread(void (*dispatch_fn)(void *), void *args) { // ,
 			if(m_pool[i].data.sync.busy == false) {
 				m_pool[i].data.dispatch_fn = dispatch_fn;
 				m_pool[i].data.dispatch_fn_args = args;
-				
+				m_pool[i].data.at_exit_fn = at_exit_fn;
 				m_pool[i].data.sync.busy = true;
 				
 				/* signal the worker (its blocking on dispatch conditions) */
@@ -160,6 +160,8 @@ bool thread_pool::thread_avail() {
 
 void *thread_pool::thread_loop(void *thread_data) {
 	thread_data_t *mydata = (thread_data_t *) thread_data;
+	void (*exit_fn)(void *);
+	void *exit_fn_args;
 
 	/* lock dispatch mutex in order to wait */
 	if(pthread_mutex_lock(&mydata->sync.dispatch_mtx) != 0) {
@@ -169,8 +171,6 @@ void *thread_pool::thread_loop(void *thread_data) {
 	mydata->sync.busy = true;
 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 	pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, NULL);
-	
-	pthread_cleanup_push(thread_pool::thread_at_exit, thread_data);
 	
 	while(1) {
 		NET02_LOG("thread %d: waiting for dispatch...\n", mydata->index);
@@ -189,21 +189,32 @@ void *thread_pool::thread_loop(void *thread_data) {
 			pthread_mutex_unlock(&mydata->sync.dispatch_mtx);
 			throw errno;
 		}
+		if(mydata->at_exit_fn != NULL) {
+			exit_fn = mydata->at_exit_fn;
+			exit_fn_args = mydata->dispatch_fn_args;
+		}
+		else {
+			exit_fn = thread_pool::thread_at_exit;
+			exit_fn_args = thread_data;
+		}
+		pthread_cleanup_push(exit_fn, exit_fn_args);
+	
 		NET02_LOG("thread %d: calling dispatch_fn...\n", mydata->index);
 		assert(mydata->sync.busy == true);
 		
 		/* do work! */
 		mydata->dispatch_fn(mydata->dispatch_fn_args);
-		
+
+		pthread_cleanup_pop(1); /* call cleanup function and remove it from the stack */
+
 		/* loop and wait on dispatch condition. note that dispatch_mtx is still locked here. */
 	}
 
 	/* shouldnt ever get here */
-	pthread_cleanup_pop(1);
 }
 
 void thread_pool::thread_at_exit(void *thread_data) {
 	thread_data_t *mydata = (thread_data_t *) thread_data;
 
-	NET02_LOG("thread %d: cancelled...\n", mydata->index);
+	NET02_LOG("thread %d: default cleanup handler...\n", mydata->index);
 }

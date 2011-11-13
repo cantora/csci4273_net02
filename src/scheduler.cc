@@ -28,7 +28,7 @@ scheduler::scheduler(size_t max_events, thread_pool *pool) : m_max_events(max_ev
 	m_coord.tp_p = m_pool;
 
 	/* keep trying to get a thread for our watch thread */
-	while(m_pool->dispatch_thread(scheduler::watch_clock, &m_coord) < 0) {
+	while(m_pool->dispatch_thread(scheduler::watch_clock, &m_coord, NULL) < 0) {
 		usleep(10000); /* 0.01 secs */
 	}
 }
@@ -227,7 +227,7 @@ void scheduler::watch_clock(void *coord) {
 			}
 
 			NET02_LOG("watch thread: trigger event %d...\n", tmp->id);
-			while(c->tp_p->dispatch_thread(tmp->event_fn, tmp->fn_args) < 0) {
+			while(c->tp_p->dispatch_thread(tmp->event_fn, tmp->fn_args, NULL) < 0) {
 				usleep(100);
 			}
 			

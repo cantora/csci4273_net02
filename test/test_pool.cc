@@ -54,7 +54,7 @@ void test_dispatch() {
 	for(i = 0; i < TEST_DISPATCH_COUNT; i++) {
 		//cout << messages[i] << endl;
 		//cout << i << endl;
-		while(tp->dispatch_thread(test_dispatch_fn, (void *)i) < 0) {
+		while(tp->dispatch_thread(test_dispatch_fn, (void *)i, NULL) < 0) {
 			sleep(0.1);
 		}
 	}	
