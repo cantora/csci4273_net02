@@ -30,6 +30,7 @@ class thread_pool {
 		bool thread_avail();
 		size_t size() const { return m_pool_size; }
 
+		//void join_all();
 	private:
 		
 		static void *thread_loop(void *thread_data);

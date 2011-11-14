@@ -65,6 +65,16 @@ thread_pool::~thread_pool() {
 	delete[] m_pool;
 }
 
+/*void thread_pool::join_all() {
+	int status,i;
+
+	for(i = 0; i < m_pool_size; i++) {
+		if( (status = pthread_join(m_pool[i], NULL) ) != 0) {
+			throw status;
+		}
+	}
+}*/
+
 
 /*
  * finds a thread to run dispatch_fn(args). 
